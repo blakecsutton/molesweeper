@@ -89,20 +89,25 @@ function validateFlaggedMines() {
 // Event handler for flagging a tile as a mine with right click.
 function flagMine() {
   
+  // Prevent pop-up menu from happening.
+  e = window.event;
+  e.preventDefault();
+  
   // If the game is over, don't allow any further flipping of tiles.
   if (molesweeper.gameOver) {
     return;
   }
   
-  // Prevent pop-up menu from happening.
-  e = window.event;
-  e.preventDefault();
+  // You cannot flag an exposed tile.
+  if (utilities.hasClass(this, "exposed")) {
+    return;
+  }
+  
   
   // Get handle to the mines remaining label for update
   var minesRemainingLabel = document.getElementById("minesRemainingLabel");
   var minesRemaining = parseInt(minesRemainingLabel.textContent, 10);
   
-  // If the mine has already been flagged, unflag it.
   var location = this.id.split(',');
   
   // See if the mine has already been flagged
