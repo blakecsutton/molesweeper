@@ -1,0 +1,24 @@
+{% extends "molesweeper/base.html" %}
+{% block script %}
+<script type="text/javascript" src="{{ STATIC_URL }}molesweeper/js/all.js"></script>
+{% endblock%}
+{% block content %}
+
+<h1>Molesweeper: Mole whacks you!</h1>
+<ul>
+  <li>Click on the game board to uncover tiles, which will tell you how many moles are nearby.</li>
+  <li>Right-click to flag tiles you think contain moles, and right-click again to unflag them if
+   you think you've made a mistake.</li>
+  <li>When you think you've correctly marked all the mines, click SUBJECT ME TO THE ULTIMATE MOLE TEST
+   to see if you won!</li>
+  <li>If you lose...you'll know.</li>
+</ul>
+<div id="game"></div>
+<div id="info">
+   
+<h3>Moles Left: <span id="minesRemainingLabel"></span></h3>
+<img id="gameOver" alt="fffffuuuu face" class=" hidden " src="{{ STATIC_URL }}molesweeper/img/fffuuu.jpg"/>
+<img id="youWin" alt="you win this time face" class=" hidden " src="{{ STATIC_URL }}molesweeper/img/youWin.jpg"/>
+<input id="validateButton" type="button" value="Subject Me To The ULTIMATE Mole Test!"></input>
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+div#info {
+  position: relative;
+  float: left;
+  width: 400px;
+  padding: 10px;
+  
+  span#minesRemainingLabel {
+    color: red;
+    font-weight: bold;
+  }
+}
+
+ul {
+  list-style: circle;
+}
+
+.hidden { display: none; }
+
+div#board {
+  
+  float: left;
+  position: relative;
+  
+  padding: 10px;
+
+  div.cell { 
+    position: relative;
+    float: left;
+    width: 20px;
+    height: 20px;
+    border: 1 px solid black;
+    float: left;
+    text-align: center;
+  }
+  
+  div.row_end { clear: left;}
+  
+  div.covered { background: gray; }
+  div.exposed { background: green; }
+  
+  div.mine {
+    background: green;
+    background-image: url('../img/mole.png'); 
+  }  
+    
+  div.flagged { 
+    background: green; 
+    background-image: url('../img/mole_flag.png');
+  }
+  
+}
+
+div#content {
+  position: relative;
+  margin: auto;
+  padding: 30 px;
+  width: 80%;
+  
+  border-left: 10px dashed green;
+  border-bottom: 10px dashed brown;
+}

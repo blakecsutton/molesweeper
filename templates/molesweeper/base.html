@@ -1,0 +1,13 @@
+<html>
+<head>
+  <title>Molesweeper</title>
+  <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}molesweeper/css/all.css"/>
+  {% block script %}{% endblock %}
+</head>
+<body>
+  <div id="content">{% block content %}{% endblock %}
+    
+    <div style="clear: both;"></div>
+  </div>
+</body>
+</html>
