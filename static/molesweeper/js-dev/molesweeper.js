@@ -1,3 +1,6 @@
+/*global console */
+
+/* Global for the molesweeper object, which holds internal game state. */
 var molesweeper = {
   
   board: [],
