@@ -1,10 +1,12 @@
+/*global window */ 
+
 var utilities = (function() {
 
   var ELEMENT_NODE = 1;
   var TEXT_NODE = 3;
   
   function hasClass(target, styleClassName) {
-    pattern = " " + styleClassName + " ";
+    var pattern = " " + styleClassName + " ";
     return ((" " + target.className + " ").indexOf(pattern) > -1);
   }
 
