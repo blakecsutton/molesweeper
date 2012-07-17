@@ -1,21 +1,21 @@
 /*global window, console */
 /*global molesweeper, utilities */
 
-window.onload = function () {
+$(document).ready( function () {
   
   // Function to disable functionality when the game is over and lost.
   function loseGame() {
+
+      console.log("Game Over Man!");    
+    
       molesweeper.gameOver = true;
-      console.log("Game Over Man!");
-      // Show the game over picture and text
-      var minesRemainingLabel = document.getElementById("minesRemainingLabel");
-      minesRemainingLabel.textContent = "GAME OVER MAN";
-      var gameOverImage = document.getElementById("gameOver");
-      utilities.removeStyleClass(gameOverImage, "hidden");
       
-      // Hide the validation buttn
-      var validateButton = document.getElementById("validateButton");
-      utilities.addStyleClass(validateButton, "hidden");
+      // Show the game over picture and text
+      $("#minesRemainingLabel").text("GAME OVER MAN");
+      $("#gameOver").removeClass("hidden");               
+      
+      // Hide the validation button 
+      $("#validateButton").addClass("hidden");
   }
   
   // Event handler for clicking a tile in the game board.
@@ -28,31 +28,29 @@ window.onload = function () {
    
     // Return immediately if the tile has already been flipped or
     // if you are trying to click on a flagged mine. You have to unflag it first.
-    if ( !utilities.hasClass(this, "covered") ||
-         utilities.hasClass(this, "flagged") ) {
+    if ( !$(this).hasClass("covered") ||
+         $(this).hasClass("flagged") ) {
       return;
     }
+
+    $(this).removeClass("covered");
     
     // Parse the id in format i,j into row and column integers.
-    var location = this.id.split(',');
+    var location = $(this).attr('id').split(',');
     var i = parseInt(location[0], 10);
     var j = parseInt(location[1], 10);
     var value = molesweeper.board[i][j];
     
-    utilities.removeStyleClass(this, "covered");
-    
     // If the tile clicked is a mine, game over.
     if(value == '*') {
   
-      utilities.addStyleClass(this, "mine");
-  
-      loseGame();
-      
+      $(this).addClass("mine");
+      loseGame();  
     }
     else {
       
-      utilities.addStyleClass(this, "exposed");
-      
+      $(this).addClass("exposed");
+           
       // If the tile is blank, uncover all its neighbors as well.
       if (value === 0) {
       
@@ -62,17 +60,16 @@ window.onload = function () {
         for(var n = 0; n < neighbors.length; n += 1) {
           
           // Construct the id string to look up the div.
-          var idString = neighbors[n][0] + ',' + neighbors[n][1];
-          var cell = document.getElementById(idString);
-          
+          // Note I am escaping the comma with two backslashes for jQuery.
+          var idString = '#' + neighbors[n][0] + '\\,' + neighbors[n][1];
+           
           // Invoke flipTile with neighbor cell as the context.
-          flipTile.call(cell);
+          flipTile.call($(idString));
         }
       }
       else {
         // If the tile is a number, add the number text to the cell.
-        var numberLabel = document.createTextNode(value);
-        this.appendChild(numberLabel);
+        $(this).text(value);
       }
     }
   }
@@ -94,12 +91,11 @@ window.onload = function () {
       return;
     }
     
-    
     // Get handle to the mines remaining label for update
-    var minesRemainingLabel = document.getElementById("minesRemainingLabel");
-    var minesRemaining = parseInt(minesRemainingLabel.textContent, 10);
+    var minesRemainingLabel = $("#minesRemainingLabel");
+    var minesRemaining = parseInt(minesRemainingLabel.text(), 10);
     
-    var location = this.id.split(',');
+    var location = $(this).attr('id').split(',');
     
     // See if the mine has already been flagged
     var index = molesweeper.searchFlagged(location[0], location[1]);
@@ -107,9 +103,9 @@ window.onload = function () {
       
       // If it has, removed it from the list of flagged mines.
       molesweeper.flaggedMines.pop(index);
-      utilities.removeStyleClass(this, "flagged");
+      $(this).removeClass("flagged");
       // Increment the number of mines remaining.
-      minesRemainingLabel.textContent = minesRemaining + 1;
+      minesRemainingLabel.text(minesRemaining + 1);
     }
     else {
     
@@ -117,9 +113,9 @@ window.onload = function () {
       // and show it as flagged.
       molesweeper.flaggedMines.push(location);
       
-      utilities.addStyleClass(this, "flagged");
+      $(this).addClass("flagged");
       // Decrement the number of mines remaining.
-      minesRemainingLabel.textContent = minesRemaining - 1;
+      minesRemainingLabel.text(minesRemaining - 1);
     }
   }
   
@@ -134,15 +130,11 @@ window.onload = function () {
       
       console.log("You win dude!");
       // Show the game over picture and text
-      var minesRemainingLabel = document.getElementById("minesRemainingLabel");
-      minesRemainingLabel.textContent = "You're a winner!";
-      var winImage = document.getElementById("youWin");
-      utilities.removeStyleClass(winImage, "hidden");
+      $("#minesRemainingLabel").text("You're a winner!");
+      $("#youWin").removeClass("hidden");
       
       // Hide the validation button
-      var validateButton = document.getElementById("validateButton");
-      utilities.addStyleClass(validateButton, "hidden");    
-      
+      $("#validateButton").addClass("hidden");
     }
     else {
       // Reveal the whole board and display the you lose text.
@@ -151,10 +143,9 @@ window.onload = function () {
       for (var mine = 0; mine < molesweeper.mines.length; mine += 1) {
         
         // Get a handle to the cell with each mine and expose it.
-        mineId = molesweeper.mines[mine][0] + ',' + molesweeper.mines[mine][1];
-        mineCell = document.getElementById(mineId);
-        utilities.removeStyleClass(mineCell, "covered");
-        utilities.addStyleClass(mineCell, "mine");
+        mineId = '#' + molesweeper.mines[mine][0] + '\\,' + molesweeper.mines[mine][1];
+        $(mineId).removeClass("covered");
+        $(mineId).addClass("mine");
       }
       
       loseGame();
@@ -172,11 +163,12 @@ window.onload = function () {
   molesweeper.printBoard();
   
   // Show the number of mines in the board.
-  var minesRemainingLabel = document.getElementById("minesRemainingLabel");
-  minesRemainingLabel.textContent = mines;
+  $("#minesRemainingLabel").text(mines);
   
   // Get the container div and create the board.
-  var container = document.getElementById("game");
+  
+  //var container = document.getElementById("game");
+  //var board = document.createElement("div");
   var board = document.createElement("div");
   board.id = "board";
   
@@ -196,19 +188,16 @@ window.onload = function () {
   }
   
   // Add the newly created board to the document
-  container.appendChild(board);
+  $("#game").append(board);
   
   // Set up click handlers for the cells
-  var cells = document.getElementsByClassName("cell");
+  var cells = $(".cell");
   for (cell = 0; cell < cells.length; cell += 1) {
     cells[cell].addEventListener("click", flipTile, false);
     cells[cell].addEventListener("contextmenu", flagMine, false);
   }
   
   // Set up click handler for validate button
-  var validateButton = document.getElementById("validateButton");
-  validateButton.addEventListener("click", validateFlaggedMines);
-};
-
-
+  $("#validateButton").click(validateFlaggedMines);
+});
 
