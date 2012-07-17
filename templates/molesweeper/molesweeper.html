@@ -1,6 +1,12 @@
 {% extends "molesweeper/base.html" %}
 {% block script %}
-<script type="text/javascript" src="{{ STATIC_URL }}molesweeper/js/all.js"></script>
+<!-- jquery, underscore and backbone libraries -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+<script src="{{ STATIC_URL }}js/libs/underscore-min.js"></script>
+<script src="{{ STATIC_URL }}js/libs/json2.js"><script>
+<script src="{{ STATIC_URL }}js/libs/backbone-min.js"></script>
+<!-- molesweeper javascript all rolled into one file and minified -->
+<script src="{{ STATIC_URL }}molesweeper/js/all.js"></script>
 {% endblock%}
 {% block content %}
 
@@ -19,6 +25,6 @@
 <h3>Moles Left: <span id="minesRemainingLabel"></span></h3>
 <img id="gameOver" alt="fffffuuuu face" class=" hidden " src="{{ STATIC_URL }}molesweeper/img/fffuuu.jpg"/>
 <img id="youWin" alt="you win this time face" class=" hidden " src="{{ STATIC_URL }}molesweeper/img/youWin.jpg"/>
-<input id="validateButton" type="button" value="Subject Me To The ULTIMATE Mole Test!"></input>
+<input id="validateButton" type="button" value="Subject Me To The ULTIMATE Mole Test!">
 </div>
 {% endblock %}
