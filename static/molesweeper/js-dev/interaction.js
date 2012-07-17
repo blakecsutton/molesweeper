@@ -87,7 +87,7 @@ $(document).ready( function () {
     }
     
     // You cannot flag an exposed tile.
-    if (utilities.hasClass(this, "exposed")) {
+    if ($(this).hasClass("exposed")) {
       return;
     }
     
