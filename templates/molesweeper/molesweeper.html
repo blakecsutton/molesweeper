@@ -3,7 +3,7 @@
 <!-- jquery, underscore and backbone libraries -->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
 <script src="{{ STATIC_URL }}js/libs/underscore-min.js"></script>
-<script src="{{ STATIC_URL }}js/libs/json2.js"><script>
+<script src="{{ STATIC_URL }}js/libs/json2.js"></script>
 <script src="{{ STATIC_URL }}js/libs/backbone-min.js"></script>
 <!-- molesweeper javascript all rolled into one file and minified -->
 <script src="{{ STATIC_URL }}molesweeper/js/all.js"></script>
@@ -15,16 +15,18 @@
   <li>Click on the game board to uncover tiles, which will tell you how many moles are nearby.</li>
   <li>Right-click to flag tiles you think contain moles, and right-click again to unflag them if
    you think you've made a mistake.</li>
-  <li>When you think you've correctly marked all the mines, click SUBJECT ME TO THE ULTIMATE MOLE TEST
-   to see if you won!</li>
+  <li>When you have correctly flagged all mines and uncovered all other tiles, you win!</li>
   <li>If you lose...you'll know.</li>
 </ul>
-<div id="game"></div>
-<div id="info">
-   
-<h3>Moles Left: <span id="minesRemainingLabel"></span></h3>
-<img id="gameOver" alt="fffffuuuu face" class=" hidden " src="{{ STATIC_URL }}molesweeper/img/fffuuu.jpg"/>
-<img id="youWin" alt="you win this time face" class=" hidden " src="{{ STATIC_URL }}molesweeper/img/youWin.jpg"/>
-<input id="validateButton" type="button" value="Subject Me To The ULTIMATE Mole Test!">
+<div id="game">
+  
+  <div id="board"></div>
+  <div id="info">
+  <h3>Moles Flagged: <span id="minesFlaggedLabel"></span></h3>
+  <img id="gameOver" alt="fffffuuuu face" class=" hidden " src="{{ STATIC_URL }}molesweeper/img/fffuuu.jpg"/>
+  <img id="youWin" alt="you win this time face" class=" hidden " src="{{ STATIC_URL }}molesweeper/img/youWin.jpg"/>
+  </div>
+  
 </div>
+
 {% endblock %}
