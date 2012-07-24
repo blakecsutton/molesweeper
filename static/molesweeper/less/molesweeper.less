@@ -4,7 +4,7 @@ div#info {
   width: 400px;
   padding: 10px;
   
-  span#minesRemainingLabel {
+  span#minesFlaggedLabel {
     color: red;
     font-weight: bold;
   }
@@ -31,22 +31,27 @@ div#board {
     border: 1 px solid black;
     float: left;
     text-align: center;
+    
+    background: gray;
   }
   
   div.row_end { clear: left;}
   
   div.covered { background: gray; }
+  
   div.exposed { background: green; }
   
-  div.mine {
-    background: green;
-    background-image: url('../img/mole.png'); 
-  }  
-    
+  div.crossed {
+    background: yellow;
+  }
+
   div.flagged { 
-    background: green; 
     background-image: url('../img/mole_flag.png');
   }
+  
+  div.mine {
+    background-image: url('../img/mole.png'); 
+  }  
   
 }
 
