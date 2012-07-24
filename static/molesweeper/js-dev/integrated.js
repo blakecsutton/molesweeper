@@ -74,16 +74,14 @@ $(function() {
       
       var isVisible = this.model.get("visible");
       var isFlagged = this.model.get("flagged");
+      
+      this.$el.toggleClass("flagged", isFlagged);
 
-      if (isFlagged) {
+      if (isFlagged && !this.model.hasMine() && isVisible) {
         
-        this.$el.toggleClass("flagged", isFlagged);
-        
-        // Show a crossed out mine if the tile is incorrectly flagged as mine
+         // Show a crossed out mine if the tile is incorrectly flagged as mine
         // and is visible (being shown to the user).
-        if(!this.model.hasMine() && isVisible) {
-          this.$el.toggleClass("crossed");
-        }
+        this.$el.toggleClass("crossed");
       }
 
       // Toggle the mine display class if a mine cell is uncovered 
