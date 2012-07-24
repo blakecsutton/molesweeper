@@ -1,476 +1,404 @@
-/*global window, console */
-/*global molesweeper, utilities */
+$(function() {
+  
+  var Cell = Backbone.Model.extend({
+    
+    defaults: function() {
+      return {
+        row: 0, // Row location of cell
+        column: 0, // Column location of cell
+        value: 0,  // Value is a mine (*), an empty space (0), or a proximity number
+        flagged: false,
+        covered: true,
+        visible: false
+      };
+    },
+    
+    hasMine: function() {
+      return this.get('value') === '*';
+    },
+    
+    empty: function() {
+      return this.get('value') === 0;
+    },
+    
+    placeMine: function() {
+      this.set({value: '*'});
+    },
+    
+    increment: function() {
+      var v = this.get("value");
+      v += 1;
+      this.set({value: v});
+    },
+    
+    // Flips over a game cell.
+    uncover: function() {
+      this.set({covered: false});
+    },
+    
+    makeVisible: function() {
+      this.set({visible: true});
+    },
+    
+    // Toggles whether the cell is flagged as a mine.
+    toggleFlagged: function() {
+      this.set({flagged: !this.get('flagged')});
+    }
+    
+  });
+  
+  // View for handling a single cell.
+  var CellView = Backbone.View.extend({
+    
+    tagName: "div",
 
-window.onload = function () {
-  
-  // Function to disable functionality when the game is over and lost.
-  function loseGame() {
-      molesweeper.gameOver = true;
-      console.log("Game Over Man!");
-      // Show the game over picture and text
-      var minesRemainingLabel = document.getElementById("minesRemainingLabel");
-      minesRemainingLabel.textContent = "GAME OVER MAN";
-      var gameOverImage = document.getElementById("gameOver");
-      utilities.removeStyleClass(gameOverImage, "hidden");
-      
-      // Hide the validation buttn
-      var validateButton = document.getElementById("validateButton");
-      utilities.addStyleClass(validateButton, "hidden");
-  }
-  
-  // Event handler for clicking a tile in the game board.
-  function flipTile() {
+    events: {
+      "click": "flipTile",
+      "contextmenu": "flagMine"
+    },
     
-    // If the game is over, don't allow any further flipping of tiles.
-    if (molesweeper.gameOver) {
-      return;
-    }
-   
-    // Return immediately if the tile has already been flipped or
-    // if you are trying to click on a flagged mine. You have to unflag it first.
-    if ( !utilities.hasClass(this, "covered") ||
-         utilities.hasClass(this, "flagged") ) {
-      return;
-    }
-    
-    // Parse the id in format i,j into row and column integers.
-    var location = this.id.split(',');
-    var i = parseInt(location[0], 10);
-    var j = parseInt(location[1], 10);
-    var value = molesweeper.board[i][j];
-    
-    utilities.removeStyleClass(this, "covered");
-    
-    // If the tile clicked is a mine, game over.
-    if(value == '*') {
-  
-      utilities.addStyleClass(this, "mine");
-  
-      loseGame();
-      
-    }
-    else {
-      
-      utilities.addStyleClass(this, "exposed");
-      
-      // If the tile is blank, uncover all its neighbors as well.
-      if (value === 0) {
-      
-        // Now recurse on all valid neighbors
-        var neighbors = molesweeper.getNeighbors(molesweeper.board, i, j);
+    initialize: function() {
+      // When the underlying model changes, invoke the render function.
+      this.model.on('change', this.render, this);
         
-        for(var n = 0; n < neighbors.length; n += 1) {
+      this.$el.addClass("cell");
+      this.$el.addClass("covered");
+    },
+    
+    render: function() {
+      
+      // Show the cell in either its covered or exposed state.
+      var isCovered = this.model.get("covered");
+      this.$el.toggleClass("covered", isCovered);
+      this.$el.toggleClass("exposed", !isCovered);
+      
+      var isVisible = this.model.get("visible");
+      var isFlagged = this.model.get("flagged");
+      
+      this.$el.toggleClass("flagged", isFlagged);
+
+      if (isFlagged && !this.model.hasMine() && isVisible) {
+        
+         // Show a crossed out mine if the tile is incorrectly flagged as mine
+        // and is visible (being shown to the user).
+        this.$el.toggleClass("crossed");
+      }
+
+      // Toggle the mine display class if a mine cell is uncovered 
+      // or one of the mines you didn't mark.
+      if (!isCovered ||
+          (isCovered && isVisible && !isFlagged) ) {
+        this.$el.toggleClass("mine", this.model.hasMine() );
+      }
+      
+      // Show the tile with the number if the cell is uncovered and not empty. 
+      if ( !isCovered && !this.model.empty() ) {
+        
+        this.$el.text(this.model.get("value"));
+      }
+      
+      
+      return this;
+    },
+    
+    flipTile: function() {
+      
+      if (this.model.get("flagged")) 
+        return; 
+      
+      // Set the cell as uncovered in the model. 
+      // The attached view will catch the change to the model and render accordingly
+      this.model.uncover();      
+    },
+    
+    flagMine: function(event) {
+      
+      event.preventDefault();
+      
+      if (!this.model.get("covered")) 
+        return;       
+ 
+      // Toggle whether or not the cell is flagged in the model
+      this.model.toggleFlagged();
+    }
+    
+  });
+  
+  var CellGroup = Backbone.Collection.extend({
+    
+    // When the state of a blank cell changes from covered to uncovered,
+    // the collection should catch the change event and act on it to 
+    // invoke flipTile on all valid neighboring cells.
+     
+     model: Cell,
+     
+     initialize: function() {
+      this.on("change:covered", this.expandTiles, this);
+      this.on("change:flagged", this.evaluateGame, this);
+      this.on("mine", this.loseGame, this);
+      this.gameOver = false;
+     },
+     
+     expandTiles: function(cell) {
+       
+       // This is called whenever a tile gets uncovered.
+       
+       // If it's a mine, end the game
+       if (cell.hasMine()) {
+         this.trigger("mine");
+       }
+       else if(cell.empty()) {
+         // If it's a blank cell, flip over all its neighbors automatically.
+         
+         // Calculate index in collection to use as a base for neighbor list.
+         var i = cell.get("row");
+         var j = cell.get("column"); 
+
+         var neighborList = this.neighbors(i, j);
+         
+         // Flip all of the neighbors.
+         var neighbor;
+         for(var n = 0; n < neighborList.length; n += 1) {
+           
+            neighbor = this.at(neighborList[n]);      
+            
+            // Don't uncover automatically if it's already exposed, flagged, or
+            // has a mine.
+            if (neighbor.get("covered") && 
+                !neighbor.get("flagged") &&
+                !neighbor.hasMine() )  {
+              this.at(neighborList[n]).uncover();
+            }
+         }         
+       }
+       else {
+          // Check to see if this is the last square and you've won the game.
+          this.evaluateGame();
+       }
+     },
+     
+     newGame: function(rows, columns, mines) {
+      
+      this.rows = rows;
+      this.columns = columns;
+      this.mines = mines;
+    
+       // Add rows*columns cells to the collection with (row, column) locations.
+       for(var i = 0; i < rows; i += 1) {
+          for(var j = 0; j < columns; j += 1) {
+            this.add({row: i, column: j});
+          }
+        }
+    
+       // Add (mines) mines to the game board, updating the mine counts
+       // of neighboring cells after each addition.
+       var i, j, index, neighborIndex, v;
+  
+       for(var mine = 0; mine < mines; mine += 1) {
           
-          // Construct the id string to look up the div.
-          var idString = neighbors[n][0] + ',' + neighbors[n][1];
-          var cell = document.getElementById(idString);
+         // Randomly choose a location for the mine, throwing out all 
+         // positions which already have a mine in them.
+         do {
+            
+           i = Math.floor(Math.random()*rows);
+           j = Math.floor(Math.random()*columns);        
+         } while( this.at(columns*i + j).hasMine());
+                    
+         // Since the tiles are inserted in row-column order, we can use
+         // that index to access the tile and turn its value into a mine.
+         index = columns*i + j;
+         this.at(index).placeMine();
+         
+         // Get the indices of all valid neighboring cells. 
+         neighborList = this.neighbors(i, j);
           
-          // Invoke flipTile with neighbor cell as the context.
-          flipTile.call(cell);
+         // Increment the mine count of all valid neighbors to the mine that
+         // are not themselves mines.
+         for(var n = 0; n < neighborList.length; n += 1) {
+                         
+             if (!this.at(neighborList[n]).hasMine()) {
+               this.at(neighborList[n]).increment();
+             }
+         }
+       }     
+    },
+    
+    // Given the index of a cell in the collection, return a list of valid
+    // indices corresponding to neighboring cells in the board.
+    neighbors: function(i, j) {
+      
+      var offsets = [[-1, -1], [1, 1], [1, -1], [-1, 1], [0, 1], [1, 0], [0, -1], [-1, 0]];
+   
+      // Build a list of valid neighbors by adding the offsets to the index
+      // and rejecting invalid indices.
+      var neighbors = [];
+      var index;
+      for(var o = 0; o < offsets.length; o += 1) {
+        
+        neighborRow = i + offsets[o][0];
+        neighborColumn = j + offsets[o][1];
+        
+        if (neighborRow >= 0 && neighborRow < this.rows &&
+            neighborColumn >= 0 && neighborColumn < this.columns) {
+          
+          index = neighborRow * this.columns + neighborColumn;
+          neighbors.push(index);
         }
       }
-      else {
-        // If the tile is a number, add the number text to the cell.
-        var numberLabel = document.createTextNode(value);
-        this.appendChild(numberLabel);
+      return neighbors;
+    },
+    
+    // This function is called whenever the conditions to lose the game are met.
+    loseGame: function() {
+      
+      console.log("Game over man!");
+      this.gameOver = true;
+      this.winGame = false;
+      
+      // Now that the game is over, mark any incorrectly flagged mines for feedback.
+      this.showWrongFlags();
+      
+      this.showOtherMines();
+      
+      this.mode
+    },
+    
+    // This function is called whenever the conditions to win the game are met.
+    winGame: function() {
+        this.gameOver = true;
+        this.winGame = true;
+        console.log("You win!");
+    },
+    
+    evaluateGame: function() {
+      // When all non-mine tiles are uncovered AND all mine tiles are flagged, 
+      // you win.
+      
+      var correctlyUncovered = this.filter(function(cell) {
+                                             return (!cell.get("covered"));
+                                           });
+      var nonMines = this.rows*this.columns - this.mines;
+      
+      if (this.allMinesFlagged() && 
+          correctlyUncovered.length === nonMines) {
+        this.winGame();
       }
-    }
-  }
-  
-  // Event handler for flagging a tile as a mine with right click.
-  function flagMine() {
-    
-    // Prevent pop-up menu from happening.
-    var e = window.event;
-    e.preventDefault();
-    
-    // If the game is over, don't allow any further flipping of tiles.
-    if (molesweeper.gameOver) {
-      return;
-    }
-    
-    // You cannot flag an exposed tile.
-    if (utilities.hasClass(this, "exposed")) {
-      return;
-    }
-    
-    
-    // Get handle to the mines remaining label for update
-    var minesRemainingLabel = document.getElementById("minesRemainingLabel");
-    var minesRemaining = parseInt(minesRemainingLabel.textContent, 10);
-    
-    var location = this.id.split(',');
-    
-    // See if the mine has already been flagged
-    var index = molesweeper.searchFlagged(location[0], location[1]);
-    if ( index != -1) {
-      
-      // If it has, removed it from the list of flagged mines.
-      molesweeper.flaggedMines.pop(index);
-      utilities.removeStyleClass(this, "flagged");
-      // Increment the number of mines remaining.
-      minesRemainingLabel.textContent = minesRemaining + 1;
-    }
-    else {
-    
-      // Otherwise add the coordinates to the internal list of flagged mines
-      // and show it as flagged.
-      molesweeper.flaggedMines.push(location);
-      
-      utilities.addStyleClass(this, "flagged");
-      // Decrement the number of mines remaining.
-      minesRemainingLabel.textContent = minesRemaining - 1;
-    }
-  }
-  
-  // Function to check flagged mines against actual mines to determine if game is won
-  // or lost.
-  function validateFlaggedMines() {
-    
-    var success = molesweeper.validateFlagged();
-    if (success) {
-      
-      molesweeper.gameOver = true;
-      
-      console.log("You win dude!");
-      // Show the game over picture and text
-      var minesRemainingLabel = document.getElementById("minesRemainingLabel");
-      minesRemainingLabel.textContent = "You're a winner!";
-      var winImage = document.getElementById("youWin");
-      utilities.removeStyleClass(winImage, "hidden");
-      
-      // Hide the validation button
-      var validateButton = document.getElementById("validateButton");
-      utilities.addStyleClass(validateButton, "hidden");    
-      
-    }
-    else {
-      // Reveal the whole board and display the you lose text.
-      var mineId;
-      var mineCell;
-      for (var mine = 0; mine < molesweeper.mines.length; mine += 1) {
         
-        // Get a handle to the cell with each mine and expose it.
-        mineId = molesweeper.mines[mine][0] + ',' + molesweeper.mines[mine][1];
-        mineCell = document.getElementById(mineId);
-        utilities.removeStyleClass(mineCell, "covered");
-        utilities.addStyleClass(mineCell, "mine");
-      }
-      
-      loseGame();
-      
-      // TODO: cross out mines you marked that are incorrect.
-    }
-  }
-  
-  // Initialization and setup code.
-  var rows = 8;
-  var columns = 8;
-  var mines = 8;
-  
-  molesweeper.createBoard(rows, columns, mines);
-  molesweeper.printBoard();
-  
-  // Show the number of mines in the board.
-  var minesRemainingLabel = document.getElementById("minesRemainingLabel");
-  minesRemainingLabel.textContent = mines;
-  
-  // Get the container div and create the board.
-  var container = document.getElementById("game");
-  var board = document.createElement("div");
-  board.id = "board";
-  
-  // Lay out the cell divs representing the board.
-  var cell, rowEnder;
-  for(var row = 0; row < rows; row += 1) {
+    },
     
-    for(var column = 0; column < columns; column += 1) {
-      cell = document.createElement("div");
-      cell.id = row + "," + column;
-      cell.className = "cell covered";
-      board.appendChild(cell);
-    }
-    rowEnder = document.createElement("div");
-    rowEnder.className = "row_end";
-    board.appendChild(rowEnder);
-  }
-  
-  // Add the newly created board to the document
-  container.appendChild(board);
-  
-  // Set up click handlers for the cells
-  var cells = document.getElementsByClassName("cell");
-  for (cell = 0; cell < cells.length; cell += 1) {
-    cells[cell].addEventListener("click", flipTile, false);
-    cells[cell].addEventListener("contextmenu", flagMine, false);
-  }
-  
-  // Set up click handler for validate button
-  var validateButton = document.getElementById("validateButton");
-  validateButton.addEventListener("click", validateFlaggedMines);
-};
-
-
-
-/*global console */
-
-/* Global for the molesweeper object, which holds internal game state. */
-var molesweeper = {
-  
-  board: [],
-  gameOver: false,
-  mines: [],
-  flaggedMines: [],
-  
-  validateFlagged: function validateFlagged() {
+    // Function which returns true if all mines in the board are correctly flagged.
+    allMinesFlagged: function() {
+      var correctlyFlagged = this.filter(function(cell) { 
+                                          return (cell.get("flagged") && 
+                                                  cell.hasMine());
+                                          });
+      return (this.mines === correctlyFlagged.length);                               
+                                               
+    },
     
-    // Search for each mine from the mines list in the list of flagged mines.
-    for (var index = 0; index < molesweeper.mines.length; index += 1 ) {
-      var searchIndex = molesweeper.searchFlagged(molesweeper.mines[index][0], 
-                                                  molesweeper.mines[index][1]);
-      if (searchIndex == -1) {
-        return false;
-      }                                                  
-    }
-    
-    return true;
-  },
-  
-  searchFlagged: function searchFlagged(row, column) {
-    var index = 0;
-    while(index < molesweeper.flaggedMines.length) {
-      if( molesweeper.flaggedMines[index][0] == row &&
-          molesweeper.flaggedMines[index][1] == column) {
-        return index;
-      }
-      index += 1;
-    }
-    return -1;
-  },
-  
-  /* Create a board of (rows)*(columns) tiles, with (mines) mines randomly placed
-   * on it. Returns a matrix representing the game board.
-   */
-  createBoard: function createBoard(rows, columns, mines) {
-    
-    // Create the board matrix as an array of arrays,
-    // and pre-fill all cells with 0.
-    var board = [];
-    
-    for(var row = 0; row < rows; row += 1) {
-      board[row] = [];
-      for(var column = 0; column < columns; column += 1) {
-        board[row][column] = 0;
-      }
-    }
-    
-    this.board = board;
-    
-    // Add (mines) mines to the game board, updating the mine counts
-    // of neighboring cells after each addition.
-    var i, j;
-    for(var mine = 0; mine < mines; mine += 1) {
-      
-      // Randomly choose a location for the mine, throwing out all 
-      // positions which already have a mine in them.
-      
-      do {
-        
-        i = Math.floor(Math.random()*rows);
-        j = Math.floor(Math.random()*columns);        
-      } while( board[i][j] == '*');
-      
-      console.log("Placed a mine at %d %d", i, j);
-      this.mines.push([i, j]);
-      
-      // Set the tile to have a mine by using a special value.
-      board[i][j] = '*';
-      
-      // Increment the mine count of all valid neighbors to the mine.
-      this.applyToNeighbors(board, i, j, molesweeper.incrementMineCount);
-    }
-  },
-  
-  // Increment the current count of mines touching the cell, unless the cell itself contains
-  // a mine.
-  incrementMineCount: function incrementMineCount(board, i, j) {
-  
-    if (board[i][j] != '*' ) {
-      board[i][j] += 1;
-    }
-  },
-  
-  // Given a location and a board, return a list of coordinates representing valid neighbors
-  // of the cell.
-  getNeighbors: function getNeighbors(board, i, j) {
-    
-    var neighbors = [];
-    
-    function inBounds(board, i, j) {
-      
-     return (i >= 0 && i < board.length &&  
-             j >= 0 && j < board[0].length);
-    }
-    
-    // Row above
-    if (inBounds(board, i-1, j-1)) {
-      neighbors.push([i-1, j-1]);
-    }
-    if (inBounds(board, i-1, j)) {
-      neighbors.push([i-1, j]);
-    }    
-    if (inBounds(board, i-1, j+1)) {
-      neighbors.push([i-1, j+1]);
-    }    
-    
-    // Same row
-    if (inBounds(board, i, j-1)) {
-      neighbors.push([i, j-1]);
-    }
-    if (inBounds( board, i, j+1)) {
-      neighbors.push([i, j+1]);
-    }
-    
-    // Row below
-    if (inBounds(board, i+1, j-1)) {
-      neighbors.push([i+1, j-1]);
-    }
-    if (inBounds(board, i+1, j)) {
-      neighbors.push([i+1, j]);
-    }
-    if (inBounds(board, i+1, j+1)) {
-      neighbors.push([i+1, j+1]);
-    }
-    
-    return neighbors;
-  },
- 
-  // Gives all the in-bounds neighbors of the specified cell, as a list of tuples.
-  applyToNeighbors: function applyToNeighbors(board, i, j, action) {
+    // Uncover all mines that weren't uncovered during the game.
+    showOtherMines: function() {
+      var mines = this.filter(function(cell) {
+                                return (cell.hasMine() &&
+                                        cell.get("covered"));
+                               });
+      _.each(mines, function(cell) { cell.makeVisible(); });                                                    
+    },
      
-     var neighbors = molesweeper.getNeighbors(board, i, j);
-     for(var neighbor = 0; neighbor < neighbors.length; neighbor += 1) {
-       action(board, neighbors[neighbor][0], neighbors[neighbor][1]);
-     }
-  },
-  
-  // Print the board for debugging purposes.
-  printBoard: function printBoard() {
-    var line;
-    for(var row = 0; row < molesweeper.board.length; row += 1) {
-      line = "";
-      for(var column = 0; column < molesweeper.board[0].length; column += 1) {
-        line += molesweeper.board[row][column] + ' ';
-      }
+    // Single out all the cells incorrectly flagged as mines.
+    showWrongFlags: function() {
+      var wrongFlags = this.filter(function(cell) { 
+                           return (cell.get("flagged") && 
+                                   !cell.hasMine());
+                          });
       
-      console.log(line);
-      
-    }
-  }
-  
-};
-/*global window */ 
-
-var utilities = (function() {
-
-  var ELEMENT_NODE = 1;
-  var TEXT_NODE = 3;
-  
-  function hasClass(target, styleClassName) {
-    var pattern = " " + styleClassName + " ";
-    return ((" " + target.className + " ").indexOf(pattern) > -1);
-  }
-
-  // Takes an element node and string for a css class name.
-  // Adds the new class to the element without affecting previous classes.
-  // Note that this function does not check if the style has already been applied, 
-  // however removeStyleClass will work even if a style appears multiple times in the className string.
-  function addStyleClass(target, styleClassName) {
-    // The extra space is deliberate because then it's always easy to remove a class'
-    target.className += ' ' + styleClassName;
-  }
-
-  // Takes an element node and a string representing a css class name.
-  // If the class is already applied to the element remove it, otherwise make no change.
-  function removeStyleClass(target, styleClassName) {
-    
-    // Matches whitespace followed by a word exactly equal to the class name.
-    var styleClassRegExp = new RegExp('\\s\\b' + styleClassName + '\\b', 'g');
-    target.className = target.className.replace(styleClassRegExp, ''); 
-  }
-
-  /* Simple utility function that accepts an element node and returns a list of its children that are elements. */
-  function getElementList(element) {
-    
-    var nodeList,
-        currentNode,
-        elementList = [];
-        
-    nodeList = element.childNodes;
-    for( var index = 0; index < nodeList.length; index += 1) {
-      
-      currentNode = nodeList[index];
-      
-      if (currentNode.nodeType == ELEMENT_NODE) {
-         elementList.push(currentNode);
+      _.each(wrongFlags, function(cell) { cell.makeVisible(); });  
+    },
+     
+     // Single out all of the cells flagged as mines
+     numberFlagged: function() {
+       var flagged = this.filter(function(cell){ return cell.get('flagged'); });
+       
+       if (!flagged) {
+         return 0;
        }
+       else {
+         return flagged.length;
+       }
+       
+     }
+   
+   });
+   
+   board = new CellGroup;
+
+  var GameView = Backbone.View.extend({
+    
+    el: "#game",
+    
+    events: {
+    },
+    
+    initialize: function() {
+      
+      // Set up a list to hold the handles to all the cell views
+      // linked to the cell models.
+      this.cellViews = [];
+      
+      // Set up callbacks for changes to the collection.
+      board.on('add', this.addCell, this);
+      board.on('reset', this.addAll, this);
+      board.on('all', this.render, this);
+      
+      this.rows = 10;
+      this.columns = 10;
+      this.mines = 5;
+      
+      // Create a new game by populating the board with cells.
+      board.newGame(this.rows, this.columns, this.mines);
+    },
+    
+    render: function() {
+      // Nothing needed right now, but later this will be
+      // where we handle showing the number of mines flagged 
+      // and remaining and so on.
+      if (board.gameOver) {
+        
+        if (board.winGame)
+          $("#youWin").show();
+        else {
+          $("#gameOver").show();
+        }
+        
+        // Turn off event handling for all cells now that the game is over.
+        _.each(this.cellViews, function(cell) { cell.undelegateEvents(); });
+      }
+      else {
+        $("#minesFlaggedLabel").text(board.numberFlagged() + "/" + this.mines);
+      }
+      
+    },
+    
+    addCell: function(cell) {
+ 
+      // Render the view for the added cell using CellView
+      var view = new CellView({model: cell});
+      this.cellViews.push(view);      
+      this.$("#board").append(view.render().el);
+      
+      // If the current cell is the last in a row, end the row with
+      // a special div.
+      if ( board.length % this.columns === 0) {
+        this.$("#board").append("<div class='row_end'></div>");
+      }
+    },
+    
+    addAll: function() {
+      board.each(this.addCell);
     }
     
-    return elementList;
-  }
-
-  // Utility function that searches a list of nodes for element nodes that contain a particular class string
-  // in their className. This works for elements with multiple classes, e.g. 'angry hidden monster', however
-  // it will also match on cla ss names that targetClass is a substring of. It returns the first result.
-  function getChildByClassName(element, targetClass) {
-    
-    var currentNode;
-    var children = element.childNodes;
-    
-    for ( var ct = 0; ct < children.length; ct += 1 ) {
-      
-      currentNode = children[ct];
-      
-      if( currentNode.nodeType == ELEMENT_NODE &&
-          currentNode.className.indexOf(targetClass) != -1 ) {
-          return currentNode;
-      }
-    } 
-  }
+  });
   
-  /* Utility function to get a query string parameter from the url by name, or 
-   * return false if it isn't there. Example getQueryStringParameter('beer')
-   */
-  function getQueryStringParameter(name) {
-    
-    // Can't use a primitive because the regex is built around a variable name.
-    var match = RegExp('[?&]' + name + '=([^&]*)')
-                    .exec(window.location.search);
-    
-    // Return false if no match. Replace +'s with spaces and use the decodeURIComponent
-    // function to translate any special characters to their equivalents (.e.g, /)
-    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
-  }
+  var game = new GameView;
 
-  /* Utility function to strip the leading and trailing whitespace from the input string.
-   * If the string is nothing but whitespace, it will return "", the empty string.
-   */
-  function strip(inputString) {
-    
-    var stripped;
-    
-    // Strip leading whitespace
-    stripped = inputString.replace(/^\s*/g,'');
-    // Strip trailing whitespace
-    stripped = stripped.replace(/\s*$/g, '');
-    
-    return stripped;
-  }
-  
-  // Return the functions that you want to be exposed to the rest of the module.
-  return {hasClass: hasClass,
-          addStyleClass: addStyleClass,
-          removeStyleClass: removeStyleClass,
-          getElementList: getElementList,
-          getQueryStringParameter: getQueryStringParameter};
-})();
+});
