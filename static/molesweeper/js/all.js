@@ -43,6 +43,10 @@ $(function() {
     // Toggles whether the cell is flagged as a mine.
     toggleFlagged: function() {
       this.set({flagged: !this.get('flagged')});
+    },
+    
+    clear: function() {
+      this.destroy();
     }
     
   });
@@ -60,6 +64,7 @@ $(function() {
     initialize: function() {
       // When the underlying model changes, invoke the render function.
       this.model.on('change', this.render, this);
+      this.model.bind('destroy', this.remove, this);
         
       this.$el.addClass("cell");
       this.$el.addClass("covered");
@@ -223,6 +228,17 @@ $(function() {
        }     
     },
     
+    clearGame: function() {
+      
+      // Clear all of the cells in the game, by removing them from
+      // the collection one by one and clearing the associated model.
+      while (this.length > 0) {
+        var cell = this.pop();
+        cell.clear();
+      }
+
+    },
+    
     // Given the index of a cell in the collection, return a list of valid
     // indices corresponding to neighboring cells in the board.
     neighbors: function(i, j) {
@@ -253,20 +269,18 @@ $(function() {
       
       console.log("Game over man!");
       this.gameOver = true;
-      this.winGame = false;
+      this.win = false;
       
       // Now that the game is over, mark any incorrectly flagged mines for feedback.
       this.showWrongFlags();
       
       this.showOtherMines();
-      
-      this.mode
     },
     
     // This function is called whenever the conditions to win the game are met.
     winGame: function() {
-        this.gameOver = true;
-        this.winGame = true;
+        board.gameOver = true;
+        board.winGame = true;
         console.log("You win!");
     },
     
@@ -337,6 +351,7 @@ $(function() {
     el: "#game",
     
     events: {
+      "submit #newGame": "resizeBoard"
     },
     
     initialize: function() {
@@ -350,6 +365,7 @@ $(function() {
       board.on('reset', this.addAll, this);
       board.on('all', this.render, this);
       
+      
       this.rows = 10;
       this.columns = 10;
       this.mines = 5;
@@ -362,21 +378,63 @@ $(function() {
       // Nothing needed right now, but later this will be
       // where we handle showing the number of mines flagged 
       // and remaining and so on.
+      
+      
       if (board.gameOver) {
-        
-        if (board.winGame)
+         
+        if (board.winGame) {
           $("#youWin").show();
+        }
         else {
           $("#gameOver").show();
-        }
-        
+        }        
         // Turn off event handling for all cells now that the game is over.
         _.each(this.cellViews, function(cell) { cell.undelegateEvents(); });
       }
       else {
         $("#minesFlaggedLabel").text(board.numberFlagged() + "/" + this.mines);
+        
+        $("#youWin").hide();
+        $("#gameOver").hide();
       }
       
+    },
+    
+    resizeBoard: function() {
+      
+      var inputElements = $("#newGame :input[type='text']");
+      
+      // Make sure they are all integers.
+      var values = [];
+      for(var i = 0; i < inputElements.length; i += 1) {
+        
+        var value = $(inputElements[i]).val();
+        if (value >= 0 && value <= 100 ) {
+          values.push(value);
+        }
+        else {
+          return;
+        }
+      }
+      
+      this.rows = values[0];
+      this.columns = values[1];
+      this.mines = Math.min(values[2], this.rows * this.columns);
+      
+      // Restart the game if needed.
+      if (board.gameOver) {
+        board.gameOver = false;
+      }
+      
+      // Delete all cell models, which triggers a callback to 
+      // remove associated views automatically.
+      board.clearGame();
+     
+      // Delete references to views to free memory. Is this needed?
+      _.each(this.cellViews, function(cellView) { delete(cellView); });
+      
+      // Then create a new game.
+      board.newGame(this.rows, this.columns, this.mines);  
     },
     
     addCell: function(cell) {
