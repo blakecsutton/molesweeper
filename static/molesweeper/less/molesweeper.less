@@ -1,13 +1,46 @@
 div#info {
   position: relative;
   float: left;
-  width: 400px;
   padding: 10px;
   
-  span#minesFlaggedLabel {
-    color: red;
+  fieldset {
+    border: 1px dashed gray;
+    padding: 0 5px 5px 5px;
+    margin: 0;
+  }
+  
+  legend {
     font-weight: bold;
   }
+  
+  ol { 
+    padding: 0;
+    margin: 0;
+  }
+  
+  li { 
+    list-style: none;
+    padding: 2px 0 2px 0;
+  }
+  
+  label {
+    width: 60px;
+    padding: 0;
+    display: inline-block;
+  }
+  input {
+    padding: 1px;
+  }
+  input[type="submit"] {
+    margin: 5px 5px 0 0;
+  }
+    
+  
+}
+
+#minesFlaggedLabel {
+  color: red;
+  font-weight: bold;
 }
 
 ul {
@@ -21,7 +54,7 @@ div#board {
   float: left;
   position: relative;
   
-  padding: 10px;
+  padding: 10px 10px 10px 0;
 
   div.cell { 
     position: relative;
