@@ -20,13 +20,39 @@
 </ul>
 <div id="game">
   
-  <div id="board"></div>
-  <div id="info">
   <h3>Moles Flagged: <span id="minesFlaggedLabel"></span></h3>
+  <div id="board"></div>  
+  
   <img id="gameOver" alt="fffffuuuu face" class=" hidden " src="{{ STATIC_URL }}molesweeper/img/fffuuu.jpg"/>
   <img id="youWin" alt="you win this time face" class=" hidden " src="{{ STATIC_URL }}molesweeper/img/youWin.jpg"/>
+
+  <div id="info">
+    <form id="newGame" type="get" action="#">
+        <fieldset>
+          <legend>Game Options</legend>
+          <ol>
+            <li>
+              <label for="rows">Rows</label>
+              <input id="rows" type="text" value="10"/>
+            </li>
+            <li>
+              <label for="columns">Columns</label>
+              <input id="columns" type="text" value="10"/>            
+            </li>  
+            <li>
+              <label for="mines">Mines</label>
+              <input id="mines" type="text" value="2"/>          
+            </li>
+          </ol>
+          <input type="submit" value="New Game"/>
+        </fieldset>    
+    </form>
+    
   </div>
+   
   
+
+
 </div>
 
 {% endblock %}
